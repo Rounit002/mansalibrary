@@ -229,14 +229,16 @@ const EditStudentForm: React.FC = () => {
       toast.error('Name is required');
       return;
     }
-    if (!formData.email.trim()) {
-      toast.error('Email is required');
+    
+    // --- FIX: Email validation is now optional ---
+    // If an email is provided, it must have a valid format.
+    // An empty email field is now allowed.
+    if (formData.email.trim() && !validateEmail(formData.email)) {
+      toast.error('Please enter a valid email address or leave it empty');
       return;
     }
-    if (!validateEmail(formData.email)) {
-      toast.error('Please enter a valid email address');
-      return;
-    }
+    // --- END FIX ---
+
     if (!formData.phone.trim()) {
       toast.error('Phone number is required');
       return;
@@ -386,7 +388,7 @@ const EditStudentForm: React.FC = () => {
               htmlFor="email"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Email
+              Email (Optional)
             </label>
             <input
               type="email"
@@ -394,7 +396,6 @@ const EditStudentForm: React.FC = () => {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-300"
             />
           </div>
