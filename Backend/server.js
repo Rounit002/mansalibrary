@@ -34,7 +34,7 @@ app.use(cors({
   origin: function (origin, callback) {
     const allowedOrigins = [
       'http://localhost:8080',
-      'https://udaanlibrary.onrender.com',
+      'https://mansalibrary.onrender.com',
       'file://'
     ];
     if (!origin || allowedOrigins.includes(origin)) {
