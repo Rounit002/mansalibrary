@@ -96,6 +96,7 @@ const AddStudentForm: React.FC = () => {
         ]);
         setBranches(branchesData);
         setShifts(shiftsData.schedules);
+        setAvailableShifts(shiftsData.schedules); // Initially, all shifts are available
       } catch (error) {
         console.error('Failed to fetch initial data:', error);
         toast.error('Failed to load branches or shifts');
@@ -138,11 +139,11 @@ const AddStudentForm: React.FC = () => {
           setLoadingShifts(false);
         }
       } else {
-        setAvailableShifts([]);
+        setAvailableShifts(shifts); // When seat is "None", all shifts are available
       }
     };
     fetchAvailableShifts();
-  }, [formData.seatId]);
+  }, [formData.seatId, shifts]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -188,13 +189,17 @@ const AddStudentForm: React.FC = () => {
     })),
   ];
 
-  const shiftOptions: ShiftOption[] = shifts.map(shift => ({
-    value: shift.id,
-    label: `${shift.title} (${shift.time} on ${shift.eventDate}) ${
-      availableShifts.some(s => s.id === shift.id) ? '(Available)' : '(Assigned)'
-    }`,
-    isDisabled: !availableShifts.some(s => s.id === shift.id),
-  }));
+  const shiftOptions: ShiftOption[] = shifts.map(shift => {
+    const isAvailable = availableShifts.some(s => s.id === shift.id);
+    const label = formData.seatId !== null
+      ? `${shift.title} (${shift.time} on ${shift.eventDate}) ${isAvailable ? '(Available)' : '(Assigned)'}`
+      : `${shift.title} (${shift.time} on ${shift.eventDate})`;
+    return {
+      value: shift.id,
+      label,
+      isDisabled: formData.seatId !== null ? !isAvailable : false, // Enable all shifts when seat is "None"
+    };
+  });
 
   const handleSubmit = async () => {
     if (
@@ -208,11 +213,7 @@ const AddStudentForm: React.FC = () => {
       return;
     }
 
-    if (formData.seatId !== null && formData.shiftId === null) {
-      toast.error('Please select a shift if a seat is selected');
-      return;
-    }
-
+    // Allow submission with seatId as null and a shift selected
     try {
       let imageUrl = '';
       if (formData.image) {
@@ -239,7 +240,7 @@ const AddStudentForm: React.FC = () => {
         branchId: formData.branchId!,
         membershipStart: formData.membershipStart,
         membershipEnd: formData.membershipEnd,
-        seatId: formData.seatId !== null ? formData.seatId : undefined,
+        seatId: formData.seatId !== null ? formData.seatId : null,
         shiftIds: formData.shiftId !== null ? [formData.shiftId] : [],
         totalFee: formData.totalFee ? parseFloat(formData.totalFee) : 0,
         amountPaid: (parseFloat(formData.cash) || 0) + (parseFloat(formData.online) || 0),
@@ -399,7 +400,7 @@ const AddStudentForm: React.FC = () => {
         </div>
         <div>
           <label htmlFor="seatId" className="block text-sm font-medium text-gray-700 mb-1">
-            Select Seat (select seat first)
+            Select Seat
           </label>
           <Select
             options={seatOptions}
@@ -412,7 +413,7 @@ const AddStudentForm: React.FC = () => {
         </div>
         <div>
           <label htmlFor="shiftId" className="block text-sm font-medium text-gray-700 mb-1">
-            Select Shift (Required if Seat is Selected)
+            Select Shift
           </label>
           <Select
             options={shiftOptions}

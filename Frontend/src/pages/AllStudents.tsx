@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 interface Student {
   id: number;
   name: string;
+  registrationNumber?: string | null;
   phone: string;
   membershipEnd: string;
   createdAt: string;
@@ -101,7 +102,8 @@ const AllStudents = () => {
 
   const filteredStudents = sortedStudents.filter((student: Student) =>
     (student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     student.phone.toLowerCase().includes(searchTerm.toLowerCase()))
+     student.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     (student.registrationNumber && student.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase())))
   );
 
   const indexOfLastStudent = currentPage * studentsPerPage;
@@ -212,6 +214,7 @@ const AllStudents = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Name</TableHead>
+                          <TableHead>Registration Number</TableHead>
                           <TableHead className="hidden md:table-cell">Phone</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead className="hidden md:table-cell">Membership End</TableHead>
@@ -233,6 +236,7 @@ const AllStudents = () => {
                           currentStudents.map((student: Student) => (
                             <TableRow key={student.id}>
                               <TableCell>{student.name}</TableCell>
+                              <TableCell>{student.registrationNumber || 'N/A'}</TableCell>
                               <TableCell className="hidden md:table-cell">{student.phone}</TableCell>
                               <TableCell>
                                 <span
@@ -264,7 +268,7 @@ const AllStudents = () => {
                           ))
                         ) : (
                           <TableRow>
-                            <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                            <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                               {selectedBranchId && selectedBranchName
                                 ? `No students found for branch: ${selectedBranchName}`
                                 : fromDate && toDate

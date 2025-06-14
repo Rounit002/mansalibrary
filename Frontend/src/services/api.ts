@@ -101,9 +101,9 @@ interface DashboardStats {
 }
 
 const API_URL = window.cordova
-  ? 'https://mansalibrary.onrender.com/api'
+  ? 'https://udaanlibrary.onrender.com/api'
   : process.env.NODE_ENV === 'production'
-    ? 'https://mansalibrary.onrender.com/api'
+    ? 'https://udaanlibrary.onrender.com/api'
     : 'http://localhost:3000/api';
 
 const apiClient = axios.create({
@@ -634,7 +634,9 @@ const api = {
 
   changeUserPassword: async (passwordData: { currentPassword: string; newPassword: string }) => {
     try {
-      const response = await apiClient.put('/users/change-password', passwordData);
+      // FIX: Changed the endpoint from '/auth/change-password' to the correct one '/users/profile'.
+      // The backend handles both profile and password updates at this single endpoint.
+      const response = await apiClient.put('/users/profile', passwordData);
       return response.data;
     } catch (error: any) {
       console.error('Error changing password:', error.response?.data || error.message);

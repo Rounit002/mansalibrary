@@ -21,25 +21,42 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import Select from 'react-select';
 
-// The Student interface includes all fields needed for the form
+// Comprehensive Student interface combining details from all pages
 interface Student {
   id: number;
   name: string;
+  registrationNumber?: string | null;
+  fatherName?: string | null;
+  aadharNumber?: string | null;
   email: string;
   phone: string;
+  address?: string | null;
+  branchId?: number;
+  branchName?: string;
+  status?: string;
+  membershipStart?: string;
   membershipEnd: string;
+  totalFee?: number;
+  amountPaid?: number;
+  dueAmount?: number;
+  cash?: number;
+  online?: number;
+  securityMoney?: number;
+  remark?: string | null;
+  profileImageUrl?: string | null;
+  createdAt?: string;
+  assignments?: Array<{
+    seatId: number;
+    shiftId: number;
+    seatNumber: string;
+    shiftTitle: string;
+  }>;
   shiftId?: number;
   shiftTitle?: string;
   seatId?: number;
   seatNumber?: string;
-  totalFee?: number;
-  cash?: number;
-  online?: number;
-  securityMoney?: number;
-  remark?: string;
-  branchId?: number;
-  branchName?: string;
 }
+
 
 interface Seat {
   id: number;
@@ -62,10 +79,17 @@ const ExpiredMemberships = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [renewDialogOpen, setRenewDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  
+  // State for all form fields
+  const [nameInput, setNameInput] = useState('');
+  const [registrationNumberInput, setRegistrationNumberInput] = useState('');
+  const [fatherNameInput, setFatherNameInput] = useState('');
+  const [aadharNumberInput, setAadharNumberInput] = useState('');
+  const [addressInput, setAddressInput] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [phoneInput, setPhoneInput] = useState('');
   const [startDate, setStartDate] = useState<Date | undefined>(new Date());
   const [endDate, setEndDate] = useState<Date | undefined>(addMonths(new Date(), 1));
-  const [emailInput, setEmailInput] = useState<string>('');
-  const [phoneInput, setPhoneInput] = useState<string>('');
   const [shiftOptions, setShiftOptions] = useState<any[]>([]);
   const [seatOptions, setSeatOptions] = useState<any[]>([]);
   const [branchOptions, setBranchOptions] = useState<any[]>([]);
@@ -77,6 +101,7 @@ const ExpiredMemberships = () => {
   const [online, setOnline] = useState<string>('');
   const [securityMoney, setSecurityMoney] = useState<string>('');
   const [remark, setRemark] = useState<string>('');
+  
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -84,14 +109,12 @@ const ExpiredMemberships = () => {
     (async () => {
       setLoading(true);
       try {
-        // Fetch all necessary data in parallel for efficiency
         const [studentsResp, shiftsResp, branchesResp] = await Promise.all([
-          api.getExpiredMemberships(), // Fetches expired students with seat/shift info
-          api.getSchedules(), // Fetches all shifts/schedules for dropdowns
-          api.getBranches(), // Fetches all branches for dropdown
+          api.getExpiredMemberships(),
+          api.getSchedules(),
+          api.getBranches(),
         ]);
 
-        // Populate state with fetched data
         setStudents(studentsResp.students);
         setShiftOptions(shiftsResp.schedules.map((shift: any) => ({ value: shift.id, label: shift.title })));
         setBranchOptions(branchesResp.map((branch: any) => ({ value: branch.id, label: branch.name })));
@@ -110,13 +133,11 @@ const ExpiredMemberships = () => {
         try {
           const response = await api.getSeats({ shiftId: selectedShift.value });
           const allSeats: Seat[] = response.seats;
-          // Filter seats that are not assigned OR assigned to the current student being renewed
           const availableSeats = allSeats.filter((seat: any) => !seat.studentId || seat.studentId === selectedStudent.id);
           setSeatOptions([
             { value: null, label: 'None' },
             ...availableSeats.map((seat: any) => ({ value: seat.id, label: seat.seatNumber }))
           ]);
-          // Reset seat if it's no longer valid for the new shift
           if (selectedSeat && !availableSeats.some((seat: any) => seat.id === selectedSeat.value) && selectedSeat.value !== null) {
             setSelectedSeat(null);
           }
@@ -129,29 +150,47 @@ const ExpiredMemberships = () => {
     }
   }, [selectedShift, selectedStudent]);
 
-  /**
-   * This function is called when the "Renew" button is clicked.
-   * It populates the entire renewal form with the selected student's previous data.
-   */
-  const handleRenewClick = (student: Student) => {
-    setSelectedStudent(student);
-    // Set new membership dates, defaulting to one month from today
-    setStartDate(new Date());
-    setEndDate(addMonths(new Date(), 1));
+  const handleRenewClick = async (student: Student) => {
+    try {
+        setLoading(true);
+        const fullStudentDetails = await api.getStudent(student.id);
+        setSelectedStudent(fullStudentDetails);
 
-    // Pre-fill all form fields with the student's existing data
-    setEmailInput(student.email || '');
-    setPhoneInput(student.phone || '');
-    setSelectedBranch(student.branchId ? { value: student.branchId, label: student.branchName } : null);
-    setSelectedShift(student.shiftId ? { value: student.shiftId, label: student.shiftTitle } : null);
-    setSelectedSeat(student.seatId ? { value: student.seatId, label: student.seatNumber } : null);
-    setTotalFee(student.totalFee ? student.totalFee.toString() : '');
-    setCash(student.cash ? student.cash.toString() : '');
-    setOnline(student.online ? student.online.toString() : '');
-    setSecurityMoney(student.securityMoney ? student.securityMoney.toString() : '');
-    setRemark(student.remark || '');
-    
-    setRenewDialogOpen(true);
+        // Set new membership dates
+        setStartDate(new Date());
+        setEndDate(addMonths(new Date(), 1));
+
+        // Pre-fill all form fields with the student's existing data
+        setNameInput(fullStudentDetails.name || '');
+        setRegistrationNumberInput(fullStudentDetails.registrationNumber || '');
+        setFatherNameInput(fullStudentDetails.fatherName || '');
+        setAadharNumberInput(fullStudentDetails.aadharNumber || '');
+        setEmailInput(fullStudentDetails.email || '');
+        setPhoneInput(fullStudentDetails.phone || '');
+        setAddressInput(fullStudentDetails.address || '');
+        setSelectedBranch(fullStudentDetails.branchId ? { value: fullStudentDetails.branchId, label: fullStudentDetails.branchName } : null);
+        
+        const currentAssignment = fullStudentDetails.assignments?.[0];
+        setSelectedShift(currentAssignment ? { value: currentAssignment.shiftId, label: currentAssignment.shiftTitle } : null);
+        
+        // This slight delay allows the seat options to populate based on the selected shift
+        setTimeout(() => {
+             setSelectedSeat(currentAssignment ? { value: currentAssignment.seatId, label: currentAssignment.seatNumber } : null);
+        }, 150);
+
+        setTotalFee(fullStudentDetails.totalFee ? fullStudentDetails.totalFee.toString() : '0');
+        setCash(fullStudentDetails.cash ? fullStudentDetails.cash.toString() : '0');
+        setOnline(fullStudentDetails.online ? fullStudentDetails.online.toString() : '0');
+        setSecurityMoney(fullStudentDetails.securityMoney ? fullStudentDetails.securityMoney.toString() : '0');
+        setRemark(fullStudentDetails.remark || '');
+        
+        setRenewDialogOpen(true);
+    } catch (error) {
+        console.error("Failed to fetch student details for renewal:", error);
+        toast.error("Failed to load student details for renewal.");
+    } finally {
+        setLoading(false);
+    }
   };
 
   const handleRenewSubmit = async () => {
@@ -161,14 +200,18 @@ const ExpiredMemberships = () => {
     }
 
     try {
-      // Send all data from the form to the renewStudent API endpoint
       await api.renewStudent(selectedStudent.id, {
+        name: nameInput,
+        registrationNumber: registrationNumberInput,
+        fatherName: fatherNameInput,
+        aadharNumber: aadharNumberInput,
+        address: addressInput,
         membershipStart: format(startDate, 'yyyy-MM-dd'),
         membershipEnd: format(endDate, 'yyyy-MM-dd'),
         email: emailInput,
         phone: phoneInput,
         branchId: selectedBranch.value,
-        shiftIds: [selectedShift.value], // API expects an array
+        shiftIds: [selectedShift.value],
         seatId: selectedSeat ? selectedSeat.value : undefined,
         totalFee: parseFloat(totalFee),
         cash: parseFloat(cash) || 0,
@@ -180,7 +223,6 @@ const ExpiredMemberships = () => {
       toast.success(`Membership renewed for ${selectedStudent.name}`);
       setRenewDialogOpen(false);
 
-      // Refresh the list of expired students after successful renewal
       const resp = await api.getExpiredMemberships();
       setStudents(resp.students);
 
@@ -190,7 +232,6 @@ const ExpiredMemberships = () => {
     }
   };
 
-  // Dynamically calculate payment details for display
   const cashAmount = parseFloat(cash) || 0;
   const onlineAmount = parseFloat(online) || 0;
   const paid = cashAmount + onlineAmount;
@@ -212,7 +253,7 @@ const ExpiredMemberships = () => {
             <Search className="absolute left-3 top-3 text-gray-400" />
             <input
               className="pl-10 pr-4 py-2 border rounded"
-              placeholder="Search by name or phone"
+              placeholder="Search by name, phone, or Reg. No."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -224,6 +265,7 @@ const ExpiredMemberships = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Registration Number</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Expiry</TableHead>
@@ -235,11 +277,13 @@ const ExpiredMemberships = () => {
                   .filter(
                     (s) =>
                       s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      (s.phone && s.phone.includes(searchTerm))
+                      (s.phone && s.phone.includes(searchTerm)) ||
+                      (s.registrationNumber && s.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()))
                   )
                   .map((student) => (
                     <TableRow key={student.id}>
                       <TableCell>{student.name}</TableCell>
+                      <TableCell>{student.registrationNumber || 'N/A'}</TableCell>
                       <TableCell>{student.email}</TableCell>
                       <TableCell>{student.phone}</TableCell>
                       <TableCell>{formatDate(student.membershipEnd)}</TableCell>
@@ -257,7 +301,7 @@ const ExpiredMemberships = () => {
                           <Button
                             variant="destructive"
                             onClick={async () => {
-                              if (confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
+                              if (window.confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
                                 try {
                                     await api.deleteStudent(student.id);
                                     setStudents(students.filter((s) => s.id !== student.id));
@@ -281,40 +325,85 @@ const ExpiredMemberships = () => {
 
         {/* Renewal Dialog */}
         <Dialog open={renewDialogOpen} onOpenChange={setRenewDialogOpen}>
-          <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Renew Membership</DialogTitle>
               <DialogDescription>Renew for {selectedStudent?.name}</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm">Start Date</label>
-                <Calendar mode="single" selected={startDate} onSelect={setStartDate} />
-              </div>
-              <div>
-                <label className="block text-sm">End Date</label>
-                <Calendar mode="single" selected={endDate} onSelect={setEndDate} />
-              </div>
-              <div>
-                <label className="block text-sm">Email</label>
+            <div className="space-y-4 py-4">
+               <div>
+                <label className="block text-sm font-medium">Name</label>
                 <input
-                  className="w-full border rounded px-2 py-1"
+                  className="w-full border rounded px-3 py-2 mt-1"
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                />
+              </div>
+               <div>
+                <label className="block text-sm font-medium">Registration Number</label>
+                <input
+                  className="w-full border rounded px-3 py-2 mt-1"
+                  type="text"
+                  value={registrationNumberInput}
+                  onChange={(e) => setRegistrationNumberInput(e.target.value)}
+                />
+              </div>
+               <div>
+                <label className="block text-sm font-medium">Father's Name</label>
+                <input
+                  className="w-full border rounded px-3 py-2 mt-1"
+                  type="text"
+                  value={fatherNameInput}
+                  onChange={(e) => setFatherNameInput(e.target.value)}
+                />
+              </div>
+                <div>
+                <label className="block text-sm font-medium">Aadhar Number</label>
+                <input
+                  className="w-full border rounded px-3 py-2 mt-1"
+                  type="text"
+                  value={aadharNumberInput}
+                  onChange={(e) => setAadharNumberInput(e.target.value)}
+                />
+              </div>
+                <div>
+                <label className="block text-sm font-medium">Address</label>
+                <textarea
+                  className="w-full border rounded px-3 py-2 mt-1"
+                  value={addressInput}
+                  onChange={(e) => setAddressInput(e.target.value)}
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Start Date</label>
+                <Calendar mode="single" selected={startDate} onSelect={setStartDate} className="rounded-md border"/>
+              </div>
+              <div>
+                <label className="block text-sm font-medium">End Date</label>
+                <Calendar mode="single" selected={endDate} onSelect={setEndDate} className="rounded-md border"/>
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Email</label>
+                <input
+                  className="w-full border rounded px-3 py-2 mt-1"
                   type="email"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                 />
               </div>
               <div>
-                <label className="block text-sm">Phone</label>
+                <label className="block text-sm font-medium">Phone</label>
                 <input
-                  className="w-full border rounded px-2 py-1"
+                  className="w-full border rounded px-3 py-2 mt-1"
                   type="tel"
                   value={phoneInput}
                   onChange={(e) => setPhoneInput(e.target.value)}
                 />
               </div>
               <div>
-                <label className="block text-sm">Branch</label>
+                <label className="block text-sm font-medium">Branch</label>
                 <Select
                   options={branchOptions}
                   value={selectedBranch}
@@ -323,7 +412,7 @@ const ExpiredMemberships = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm">Shift</label>
+                <label className="block text-sm font-medium">Shift</label>
                 <Select
                   options={shiftOptions}
                   value={selectedShift}
@@ -332,18 +421,19 @@ const ExpiredMemberships = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm">Seat</label>
+                <label className="block text-sm font-medium">Seat</label>
                 <Select
                   options={seatOptions}
                   value={selectedSeat}
                   onChange={setSelectedSeat}
                   placeholder="Select Seat"
+                  isDisabled={!selectedShift}
                 />
               </div>
               <div>
-                <label className="block text-sm">Total Fee</label>
+                <label className="block text-sm font-medium">Total Fee</label>
                 <input
-                  className="w-full border rounded px-2 py-1"
+                  className="w-full border rounded px-3 py-2 mt-1"
                   type="number"
                   value={totalFee}
                   onChange={(e) => setTotalFee(e.target.value)}
@@ -352,9 +442,9 @@ const ExpiredMemberships = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm">Cash Payment</label>
+                <label className="block text-sm font-medium">Cash Payment</label>
                 <input
-                  className="w-full border rounded px-2 py-1"
+                  className="w-full border rounded px-3 py-2 mt-1"
                   type="number"
                   value={cash}
                   onChange={(e) => setCash(e.target.value)}
@@ -363,9 +453,9 @@ const ExpiredMemberships = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm">Online Payment</label>
+                <label className="block text-sm font-medium">Online Payment</label>
                 <input
-                  className="w-full border rounded px-2 py-1"
+                  className="w-full border rounded px-3 py-2 mt-1"
                   type="number"
                   value={online}
                   onChange={(e) => setOnline(e.target.value)}
@@ -374,9 +464,9 @@ const ExpiredMemberships = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm">Security Money</label>
+                <label className="block text-sm font-medium">Security Money</label>
                 <input
-                  className="w-full border rounded px-2 py-1"
+                  className="w-full border rounded px-3 py-2 mt-1"
                   type="number"
                   value={securityMoney}
                   onChange={(e) => setSecurityMoney(e.target.value)}
@@ -385,27 +475,27 @@ const ExpiredMemberships = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm">Amount Paid</label>
+                <label className="block text-sm font-medium">Amount Paid</label>
                 <input
-                  className="w-full border rounded px-2 py-1 bg-gray-100"
+                  className="w-full border rounded px-3 py-2 mt-1 bg-gray-100"
                   type="number"
                   value={paid.toFixed(2)}
                   readOnly
                 />
               </div>
               <div>
-                <label className="block text-sm">Due Amount</label>
+                <label className="block text-sm font-medium">Due Amount</label>
                 <input
-                  className="w-full border rounded px-2 py-1 bg-gray-100"
+                  className="w-full border rounded px-3 py-2 mt-1 bg-gray-100"
                   type="number"
                   value={due.toFixed(2)}
                   readOnly
                 />
               </div>
               <div>
-                <label className="block text-sm">Remark</label>
+                <label className="block text-sm font-medium">Remark</label>
                 <textarea
-                  className="w-full border rounded px-2 py-1"
+                  className="w-full border rounded px-3 py-2 mt-1"
                   value={remark}
                   onChange={(e) => setRemark(e.target.value)}
                   rows={3}
@@ -416,7 +506,7 @@ const ExpiredMemberships = () => {
               <Button variant="outline" onClick={() => setRenewDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleRenewSubmit}>Renew</Button>
+              <Button onClick={handleRenewSubmit}>Renew Membership</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

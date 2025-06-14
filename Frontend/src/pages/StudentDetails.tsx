@@ -188,7 +188,7 @@ const StudentDetails: React.FC = () => {
 
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
                 <div className="flex justify-center mb-6 no-print">
-                  <img src={MansaLogo} alt="Mansa Library Logo" className="max-w-[250px]" />
+                  <img src={MansaLogo} alt="SDM Library Logo" className="max-w-[250px]" />
                 </div>
 
                 <h1 className="text-2xl font-bold text-gray-800 mb-6 no-print">Student Details</h1>

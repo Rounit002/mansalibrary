@@ -397,17 +397,18 @@ module.exports = (pool) => {
       console.log('Inserted student:', student);
 
       let firstShiftId = null;
-      if (seatIdNum && shiftIdsNum.length > 0) {
-        for (const shiftId of shiftIdsNum) {
-          console.log('Inserting into seat_assignments:', { seatIdNum, shiftId, studentId: student.id });
-          await client.query(
-            'INSERT INTO seat_assignments (seat_id, shift_id, student_id) VALUES ($1, $2, $3)',
-            [seatIdNum, shiftId, student.id]
-          );
-          console.log('Successfully inserted into seat_assignments for shift:', shiftId);
-          if (!firstShiftId) firstShiftId = shiftId;
-        }
-      }
+if (shiftIdsNum.length > 0) {
+  for (const shiftId of shiftIdsNum) {
+    console.log('Inserting into seat_assignments:', { seatIdNum, shiftId, studentId: student.id });
+    await client.query(
+      'INSERT INTO seat_assignments (seat_id, shift_id, student_id) VALUES ($1, $2, $3)',
+      [seatIdNum, shiftId, student.id]  // seatIdNum can be null here
+    );
+    console.log('Successfully inserted into seat_assignments for shift:', shiftId);
+    if (!firstShiftId) firstShiftId = shiftId;
+  }
+}
+
 
       await client.query(
         `INSERT INTO student_membership_history (

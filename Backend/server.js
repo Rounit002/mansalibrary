@@ -12,8 +12,8 @@ const multer = require('multer');
 const winston = require('winston');
 require('dotenv').config();
 
-const { setupCronJobs } = require('./utils/cronJobs'); 
-const { sendExpirationReminder } = require('./utils/email'); 
+const { setupCronJobs } = require('./utils/cronJobs');
+const { sendExpirationReminder } = require('./utils/email');
 
 const app = express();
 
@@ -108,10 +108,10 @@ const upload = multer({
   },
 });
 
-const authExports = require('./routes/auth'); 
+const authExports = require('./routes/auth');
 const authRouterFactory = authExports.authRouter;
-const authenticateUser = authExports.authenticateUser; 
-const checkAdmin = authExports.checkAdmin; 
+const authenticateUser = authExports.authenticateUser;
+const checkAdmin = authExports.checkAdmin;
 const checkAdminOrStaff = authExports.checkAdminOrStaff;
 
 if (typeof authenticateUser !== 'function') {
@@ -200,7 +200,9 @@ const branchesRoutes = initializeRoute('./routes/branches', pool);
 const productsRoutes = initializeRoute('./routes/products', pool);
 
 app.use('/api/auth', authRoutes);
-app.use('/api/users', authenticateUser, checkAdmin, userRoutes);
+// FIX: Removed 'checkAdmin' middleware to allow authenticated users to access their own profile.
+// The specific admin routes within 'userRoutes' are already protected internally.
+app.use('/api/users', authenticateUser, userRoutes);
 app.use('/api/students', authenticateUser, checkAdminOrStaff, studentRoutes);
 app.use('/api/schedules', authenticateUser, checkAdminOrStaff, scheduleRoutes);
 app.use('/api/seats', authenticateUser, checkAdminOrStaff, seatsRoutes);
@@ -264,9 +266,17 @@ const PORT_NUM = process.env.PORT || 3000;
     } else {
         logger.warn('setupCronJobs is not a function, cron jobs not started.');
     }
-    app.listen(PORT_NUM, '0.0.0.0', () => {
+    const server = app.listen(PORT_NUM, '0.0.0.0', () => { // Assign app.listen to 'server'
       logger.info(`Server running on port ${PORT_NUM}`);
     });
+
+    // *** FIX STARTS HERE ***
+    // Set a longer keep-alive timeout to prevent premature connection closing
+    // Your frontend polls every 30s, so this should be > 30s. 65s is a safe value.
+    server.keepAliveTimeout = 65000; // 65 seconds
+    server.headersTimeout = 70000;   // 70 seconds
+    // *** FIX ENDS HERE ***
+
   } catch (err) {
     logger.error('Failed to start server:', err.stack);
     process.exit(1);
@@ -282,7 +292,7 @@ async function initializeSessionTable() {
         "expire" timestamp(6) NOT NULL
       ) WITH (OIDS=FALSE);`);
     const pkeyCheck = await pool.query(`
-      SELECT conname FROM pg_constraint 
+      SELECT conname FROM pg_constraint
       WHERE conrelid = 'session'::regclass AND conrelid::oid IN (
         SELECT oid FROM pg_class WHERE relname = 'session' AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
       ) AND contype = 'p';
@@ -294,7 +304,7 @@ async function initializeSessionTable() {
     logger.info('Session table checked/initialized successfully');
   } catch (err) {
     logger.error('Error initializing session table:', err.stack);
-    if (err.code !== '42P07' && err.code !== '42710') { 
+    if (err.code !== '42P07' && err.code !== '42710') {
         // process.exit(1); // Consider if this should halt server startup
     } else {
       logger.warn(`Session table or its constraints/indexes might already exist: ${err.message}`);
@@ -306,7 +316,7 @@ async function createDefaultAdmin() {
   try {
     const usersTableExists = await pool.query(`
       SELECT EXISTS (
-        SELECT FROM information_schema.tables 
+        SELECT FROM information_schema.tables
         WHERE  table_schema = 'public'
         AND    table_name   = 'users'
       );

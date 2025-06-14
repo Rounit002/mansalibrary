@@ -13,10 +13,11 @@ import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import api from '../services/api';
 
-// No changes needed here. The interface matches the new backend route's response.
+// Interface updated to include registrationNumber
 interface Student {
   id: number;
   name: string;
+  registrationNumber?: string | null;
   email: string;
   phone: string;
   address: string;
@@ -55,7 +56,6 @@ const ShiftStudents: React.FC = () => {
 
   useEffect(() => {
     const fetchShiftAndStudents = async () => {
-      // This logic is correct and will work with the new backend route.
       try {
         const shiftId = parseInt(id!, 10);
         if (isNaN(shiftId)) {
@@ -65,9 +65,9 @@ const ShiftStudents: React.FC = () => {
         const shiftResponse = await api.getSchedule(shiftId);
         setShiftName(shiftResponse.title || `Shift ${shiftId}`);
 
+        // The backend will handle searching by registration number with the existing `filters` object.
         const studentsResponse = await api.getStudentsByShift(shiftId, filters);
         
-        // This check is what was failing, but will now pass because the backend sends the correct format.
         if (!studentsResponse || !Array.isArray(studentsResponse.students)) {
           throw new Error('Invalid response: Students data is missing or not an array');
         }
@@ -144,7 +144,7 @@ const ShiftStudents: React.FC = () => {
                     name="search"
                     value={filters.search}
                     onChange={handleFilterChange}
-                    placeholder="Search by name or phone"
+                    placeholder="Search by name, phone, or Reg. No."
                     className="max-w-sm"
                   />
                   <Select value={filters.status} onValueChange={handleStatusChange}>
@@ -174,6 +174,7 @@ const ShiftStudents: React.FC = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
+                        <TableHead>Registration Number</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Phone</TableHead>
                         <TableHead>Status</TableHead>
@@ -183,6 +184,7 @@ const ShiftStudents: React.FC = () => {
                       {students.map((student) => (
                         <TableRow key={student.id}>
                           <TableCell className="font-medium">{student.name}</TableCell>
+                          <TableCell>{student.registrationNumber || 'N/A'}</TableCell>
                           <TableCell>{student.email || 'N/A'}</TableCell>
                           <TableCell>{student.phone || 'N/A'}</TableCell>
                           <TableCell>

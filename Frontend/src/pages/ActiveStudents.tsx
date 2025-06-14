@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 interface Student {
   id: number;
   name: string;
+  registrationNumber?: string | null;
   email: string;
   phone: string;
   address: string;
@@ -69,7 +70,8 @@ const ActiveStudents = () => {
 
   const filteredStudents = students.filter((student: Student) =>
     student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.phone.toLowerCase().includes(searchTerm.toLowerCase())
+    student.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (student.registrationNumber && student.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const indexOfLastStudent = currentPage * studentsPerPage;
@@ -128,6 +130,7 @@ const ActiveStudents = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Name</TableHead>
+                          <TableHead>Registration Number</TableHead>
                           <TableHead className="hidden md:table-cell">Phone</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead className="hidden md:table-cell">Membership End</TableHead>
@@ -139,6 +142,7 @@ const ActiveStudents = () => {
                           currentStudents.map((student: Student) => (
                             <TableRow key={student.id}>
                               <TableCell>{student.name}</TableCell>
+                              <TableCell>{student.registrationNumber || 'N/A'}</TableCell>
                               <TableCell className="hidden md:table-cell">{student.phone}</TableCell>
                               <TableCell>
                                 <span
@@ -168,7 +172,7 @@ const ActiveStudents = () => {
                           ))
                         ) : (
                           <TableRow>
-                            <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                            <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                               {filteredStudents.length === 0
                                 ? 'No active students found matching your search.'
                                 : 'No active students on this page.'}
