@@ -16,6 +16,7 @@ interface Student {
   id: number;
   name: string;
   registrationNumber?: string | null;
+  seatNumber?: string | null; // CORRECTED: Changed from 'seat' to 'seatNumber'
   phone: string;
   status: string;
   membershipEnd: string;
@@ -85,7 +86,8 @@ const StudentList: React.FC<StudentListProps> = ({ limit, selectedBranchId }) =>
     (student) =>
       student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (student.registrationNumber && student.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()))
+      (student.registrationNumber && student.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (student.seatNumber && student.seatNumber.toLowerCase().includes(searchTerm.toLowerCase())) // CORRECTED: search by seatNumber
   );
 
   const indexOfLastStudent = limit ?? currentPage * studentsPerPage;
@@ -121,6 +123,7 @@ const StudentList: React.FC<StudentListProps> = ({ limit, selectedBranchId }) =>
                 <tr className="bg-gray-50 text-left">
                   <th className="px-6 py-3 text-gray-500 font-medium">Name</th>
                   <th className="px-6 py-3 text-gray-500 font-medium hidden md:table-cell">Registration Number</th>
+                  <th className="px-6 py-3 text-gray-500 font-medium hidden md:table-cell">Seat</th>
                   <th className="px-6 py-3 text-gray-500 font-medium hidden md:table-cell">Phone</th>
                   <th className="px-6 py-3 text-gray-500 font-medium">Status</th>
                   <th className="px-6 py-3 text-gray-500 font-medium hidden md:table-cell">Membership End</th>
@@ -132,6 +135,8 @@ const StudentList: React.FC<StudentListProps> = ({ limit, selectedBranchId }) =>
                   <tr key={student.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">{student.name}</td>
                     <td className="px-6 py-4 hidden md:table-cell">{student.registrationNumber || 'N/A'}</td>
+                    {/* CORRECTED: Renders student.seatNumber */}
+                    <td className="px-6 py-4 hidden md:table-cell">{student.seatNumber || 'N/A'}</td>
                     <td className="px-6 py-4 hidden md:table-cell">{student.phone}</td>
                     <td className="px-6 py-4">
                       <span

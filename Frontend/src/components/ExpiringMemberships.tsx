@@ -1,3 +1,4 @@
+// File: ExpiringMemberships.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -6,13 +7,15 @@ import { AlertCircle, ChevronRight, Trash2, Eye, ChevronLeft, MessageSquare } fr
 
 const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return 'N/A';
-  return new Date(dateString).toISOString().split('T')[0];
+  // The date is already formatted as YYYY-MM-DD from the backend
+  return dateString;
 };
 
-// Define the Student interface based on the expected API response
+// FIX: Simplified interface now that the backend sends seatNumber directly.
 interface Student {
   id: number;
   name: string;
+  seatNumber?: string | null;
   phone: string;
   status: string;
   membershipEnd: string;
@@ -34,12 +37,16 @@ const ExpiringMemberships: React.FC<ExpiringMembershipsProps> = ({ limit, select
     const fetchStudents = async () => {
       setLoading(true);
       try {
-        // Refactored to use the more direct API endpoint for expiring students
+        // This API call will now return the seatNumber directly.
         const response = await api.getExpiringSoon(selectedBranchId ?? undefined);
         if (!response || !Array.isArray(response.students)) {
           throw new Error('Invalid data received for expiring students');
         }
+        
+        // FIX: No complex client-side processing is needed anymore.
+        // The backend now provides the correct data directly.
         setStudents(response.students);
+
       } catch (error: any) {
         if (error.response && error.response.status === 401) {
           toast.error('Session expired. Please log in again.');
@@ -48,7 +55,7 @@ const ExpiringMemberships: React.FC<ExpiringMembershipsProps> = ({ limit, select
           console.error('Failed to fetch expiring memberships:', error.message);
           toast.error('Failed to fetch expiring memberships');
         }
-        setStudents([]); // Fallback to empty array on error
+        setStudents([]);
       } finally {
         setLoading(false);
       }
@@ -57,16 +64,11 @@ const ExpiringMemberships: React.FC<ExpiringMembershipsProps> = ({ limit, select
     fetchStudents();
   }, [navigate, selectedBranchId]);
 
-  /**
-   * Handles the click on the WhatsApp icon.
-   * Formats the phone number and opens the WhatsApp chat link.
-   */
   const handleWhatsAppClick = (phoneNumber: string) => {
     if (!phoneNumber) {
       toast.error('No phone number available for this student.');
       return;
     }
-    // Cleans the number and prepends Indian country code if it's a 10-digit number
     let cleanedNumber = phoneNumber.replace(/\D/g, '');
     if (cleanedNumber.length === 10) {
       cleanedNumber = `91${cleanedNumber}`;
@@ -118,7 +120,9 @@ const ExpiringMemberships: React.FC<ExpiringMembershipsProps> = ({ limit, select
             <thead>
               <tr className="bg-gray-50 text-left">
                 <th className="px-6 py-3 text-gray-500 font-medium">Name</th>
+                <th className="px-6 py-3 text-gray-500 font-medium hidden md:table-cell">Seat</th>
                 <th className="px-6 py-3 text-gray-500 font-medium hidden md:table-cell">Phone</th>
+                <th className="px-6 py-3 text-gray-500 font-medium">Status</th>
                 <th className="px-6 py-3 text-gray-500 font-medium">Expiry Date</th>
                 <th className="px-6 py-3 text-gray-500 font-medium">Actions</th>
               </tr>
@@ -127,7 +131,17 @@ const ExpiringMemberships: React.FC<ExpiringMembershipsProps> = ({ limit, select
               {currentStudents.map((student) => (
                 <tr key={student.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">{student.name}</td>
+                  <td className="px-6 py-4 hidden md:table-cell">{student.seatNumber || 'N/A'}</td>
                   <td className="px-6 py-4 hidden md:table-cell">{student.phone}</td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        student.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}
+                    >
+                      {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
+                    </span>
+                  </td>
                   <td className="px-6 py-4">
                     <span className="px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-800">
                       {formatDate(student.membershipEnd)}
