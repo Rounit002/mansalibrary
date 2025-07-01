@@ -2,24 +2,22 @@ import React, { useEffect, useState } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import api, { Branch, StudentSummary } from '../services/api'; // Import Branch and StudentSummary
+import api, { Branch, StudentSummary } from '../services/api';
 import { Search, ChevronLeft, ChevronRight, Trash2, Eye, ArrowUp, ArrowDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
-// Define the Student type for the frontend, matching StudentSummary
 interface Student {
   id: number;
   name: string;
-  registrationNumber?: string | null;
   phone: string;
+  registrationNumber?: string | null;
   membershipEnd: string;
   createdAt: string;
   status: string;
   seatNumber?: string | null;
 }
 
-// Utility function to format date to YYYY-MM-DD
 const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return 'N/A';
   return new Date(dateString).toISOString().split('T')[0];
@@ -27,19 +25,20 @@ const formatDate = (dateString: string | undefined): string => {
 
 const AllStudents = () => {
   const [students, setStudents] = useState<Student[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]); // State for branches
-  const [selectedBranchId, setSelectedBranchId] = useState<number | undefined>(undefined); // State for selected branch
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [studentsPerPage, setStudentsPerPage] = useState(10);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [sortColumn, setSortColumn] = useState<'createdAt' | 'seatNumber' | null>(null);
+  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [seatSortDirection, setSeatSortDirection] = useState<'asc' | 'desc'>('asc');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
 
-  // Fetch branches on mount
   useEffect(() => {
     const fetchBranches = async () => {
       try {
@@ -54,7 +53,6 @@ const AllStudents = () => {
     fetchBranches();
   }, []);
 
-  // Fetch students whenever selectedBranchId, fromDate, or toDate changes
   useEffect(() => {
     const fetchStudents = async () => {
       try {
@@ -68,6 +66,7 @@ const AllStudents = () => {
             ...student,
             status: isExpired ? 'expired' : student.status,
             createdAt: student.createdAt || 'N/A',
+            registrationNumber: student.registrationNumber || 'N/A',
           };
         });
         setStudents(updatedStudents);
@@ -80,24 +79,36 @@ const AllStudents = () => {
     };
 
     fetchStudents();
-  }, [selectedBranchId, fromDate, toDate]); // Added selectedBranchId as a dependency
+  }, [selectedBranchId, fromDate, toDate]);
 
-  // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, selectedBranchId, fromDate, toDate]);
 
-  const handleSort = () => {
-    setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+  const handleSort = (column: 'createdAt' | 'seatNumber') => {
+    setSortColumn(column);
+    if (column === 'createdAt') {
+      setCreatedAtSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSeatSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    }
   };
 
-  // Sort students based on createdAt with validation
   const sortedStudents = [...students].sort((a, b) => {
-    const dateA = new Date(a.createdAt);
-    const dateB = new Date(b.createdAt);
-    const timeA = isNaN(dateA.getTime()) ? new Date().getTime() : dateA.getTime();
-    const timeB = isNaN(dateB.getTime()) ? new Date().getTime() : dateB.getTime();
-    return sortDirection === 'asc' ? timeA - timeB : timeB - timeA;
+    if (sortColumn === 'createdAt') {
+      const dateA = new Date(a.createdAt);
+      const dateB = new Date(b.createdAt);
+      const timeA = isNaN(dateA.getTime()) ? new Date().getTime() : dateA.getTime();
+      const timeB = isNaN(dateB.getTime()) ? new Date().getTime() : dateB.getTime();
+      return createdAtSortDirection === 'asc' ? timeA - timeB : timeB - timeA;
+    } else if (sortColumn === 'seatNumber') {
+      const seatA = a.seatNumber || '';
+      const seatB = b.seatNumber || '';
+      return seatSortDirection === 'asc' 
+        ? seatA.localeCompare(seatB, undefined, { numeric: true }) 
+        : seatB.localeCompare(seatA, undefined, { numeric: true });
+    }
+    return 0;
   });
 
   const filteredStudents = sortedStudents.filter((student: Student) =>
@@ -128,7 +139,12 @@ const AllStudents = () => {
     navigate(`/students/${id}`);
   };
 
-  // Find the name of the selected branch for display
+  const handleWhatsApp = (phone: string) => {
+    const cleanedPhone = phone.replace(/[^\d]/g, '');
+    const whatsappUrl = `https://wa.me/${cleanedPhone}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   const selectedBranchName = selectedBranchId
     ? branches.find(branch => branch.id === selectedBranchId)?.name
     : null;
@@ -151,7 +167,7 @@ const AllStudents = () => {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <input
                     type="text"
-                    placeholder="Search students..."
+                    placeholder="Search by name, phone, or registration number..."
                     className="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-purple-300"
                     value={searchTerm}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
@@ -218,14 +234,24 @@ const AllStudents = () => {
                           <TableHead className="hidden md:table-cell">Phone</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead className="hidden md:table-cell">Membership End</TableHead>
-                          <TableHead className="hidden md:table-cell">Seat</TableHead>
+                          <TableHead className="hidden md:table-cell">
+                            <button
+                              className="flex items-center gap-1 hover:text-purple-600"
+                              onClick={() => handleSort('seatNumber')}
+                            >
+                              Seat
+                              {sortColumn === 'seatNumber' && 
+                                (seatSortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                            </button>
+                          </TableHead>
                           <TableHead>
                             <button
                               className="flex items-center gap-1 hover:text-purple-600"
-                              onClick={handleSort}
+                              onClick={() => handleSort('createdAt')}
                             >
                               Added On
-                              {sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                              {sortColumn === 'createdAt' && 
+                                (createdAtSortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                             </button>
                           </TableHead>
                           <TableHead>Actions</TableHead>
@@ -263,6 +289,14 @@ const AllStudents = () => {
                                 >
                                   <Trash2 size={16} />
                                 </button>
+                                <button
+                                  onClick={() => handleWhatsApp(student.phone)}
+                                  className="text-green-600 hover:text-green-800 p-2"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-whatsapp" viewBox="0 0 16 16">
+                                    <path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.654-.182-.076-.314-.104-.443.099-.132.203-.428.65-.809.803-.364.146-.529.154-.841.134-.32-.019-.694-.023-1.085-.003-.392.019-.351.045-.581.271-.228.226-.54.299-.777.161-.237-.137-.436-.336-.517-.558-.08-.222-.289-.417-.526-.567-.237-.149-.47-.185-.5-.255-.03-.07.012-.087.189-.267.173-.179.489-.563.731-.815.243-.252.408-.386.46-.403.052-.017.077-.023.14-.023.063 0 .237.09.403.362.165.273.43.749.568 1.15.14.401.212.576.285.523.074-.053.4-.598.926-1.168.526-.569.935-.862 1.135-.907.2-.045.323.014.403.099.08.085.115.194.106.271-.009.076-.4.297-.896.753-.494.457-.878.863-1.087 1.129-.209.266-.18.391-.097.598.082.207.289.387.472.528.183.141.37.193.578.15.207-.043.561-.24 1.007-.436.446-.196.862-.36 1.214-.36.127 0 .259.012.394.039.135.027.267.073.398.137.131.064.249.147.354.246.105.099.194.197.258.343.064.145.087.29.061.435-.025.144-.121.277-.246.393-.125.116-.298.214-.487.284-.189.07-.385.107-.599.091-.214-.016-.414-.081-.736-.166-.322-.085-.593-.16-.829-.258z"/>
+                                  </svg>
+                                </button>
                               </TableCell>
                             </TableRow>
                           ))
@@ -272,8 +306,8 @@ const AllStudents = () => {
                               {selectedBranchId && selectedBranchName
                                 ? `No students found for branch: ${selectedBranchName}`
                                 : fromDate && toDate
-                                ? 'No students found for the selected date range.'
-                                : 'No students available.'}
+                                ? `No students found for the selected date range.`
+                                : 'No students found.'}
                             </TableCell>
                           </TableRow>
                         )}

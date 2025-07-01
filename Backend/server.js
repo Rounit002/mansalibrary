@@ -1,7 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const session = require('express-session');
-const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
 const path = require('path');
 const cors = require('cors');
@@ -12,8 +11,8 @@ const multer = require('multer');
 const winston = require('winston');
 require('dotenv').config();
 
-const { setupCronJobs } = require('./utils/cronJobs');
-const { sendExpirationReminder } = require('./utils/email');
+const { setupCronJobs } = require('./utils/cronJobs'); 
+const { sendExpirationReminder } = require('./utils/email'); 
 
 const app = express();
 
@@ -93,25 +92,34 @@ cloudinary.config({
 });
 
 const storage = multer.memoryStorage();
-const upload = multer({
-  storage: storage,
-  limits: { fileSize: 200 * 1024 }, // 200KB limit
-  fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png|gif/;
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = filetypes.test(file.mimetype);
-    if (extname && mimetype) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only images (jpeg, jpg, png, gif) are allowed'));
+const upload = multer({ storage: storage });
+
+app.post('/api/upload-image', upload.single('image'), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) return res.status(400).json({ message: 'No file uploaded' });
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream({ resource_type: 'image' }, (error, uploadResult) => {
+        if (error) return reject(error);
+        resolve(uploadResult);
+      });
+      stream.end(file.buffer);
+    });
+    if (!result || !result.secure_url) {
+        logger.error('Cloudinary upload failed, no secure_url:', result);
+        return res.status(500).json({ message: 'Image upload failed with Cloudinary' });
     }
-  },
+    res.json({ imageUrl: result.secure_url });
+  } catch (error) {
+    logger.error('Error uploading image:', error);
+    res.status(500).json({ message: 'Server error during image upload' });
+  }
 });
 
-const authExports = require('./routes/auth');
+const authExports = require('./routes/auth'); 
 const authRouterFactory = authExports.authRouter;
-const authenticateUser = authExports.authenticateUser;
-const checkAdmin = authExports.checkAdmin;
+const authenticateUser = authExports.authenticateUser; 
+const checkAdmin = authExports.checkAdmin; 
 const checkAdminOrStaff = authExports.checkAdminOrStaff;
 
 if (typeof authenticateUser !== 'function') {
@@ -131,60 +139,23 @@ if (typeof checkAdminOrStaff !== 'function') {
   process.exit(1);
 }
 
-const authRoutes = authRouterFactory(pool, bcrypt);
+const authRoutes = authRouterFactory(pool);
 
-app.post('/api/upload-image', authenticateUser, checkAdminOrStaff, upload.single('image'), async (req, res) => {
-  try {
-    const file = req.file;
-    if (!file) return res.status(400).json({ message: 'No file uploaded' });
-
-    const result = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { resource_type: 'image', folder: 'student_profiles' },
-        (error, uploadResult) => {
-          if (error) return reject(error);
-          resolve(uploadResult);
-        }
-      );
-      stream.end(file.buffer);
-    });
-
-    if (!result || !result.secure_url) {
-      logger.error('Cloudinary upload failed, no secure_url returned:', result);
-      return res.status(500).json({ message: 'Image upload failed with Cloudinary' });
-    }
-
-    logger.info('Image uploaded successfully to Cloudinary', { imageUrl: result.secure_url });
-    res.json({ imageUrl: result.secure_url });
-  } catch (error) {
-    logger.error('Error uploading image to Cloudinary:', {
-      message: error.message,
-      stack: error.stack,
-      cloudinaryConfig: {
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY ? '****' : undefined,
-        api_secret: process.env.CLOUDINARY_API_SECRET ? '****' : undefined,
-      },
-    });
-    res.status(500).json({ message: 'Server error during image upload', error: error.message });
-  }
-});
-
-const initializeRoute = (filePath, poolInstance, bcryptInstance) => {
+const initializeRoute = (filePath, poolInstance) => {
   try {
     const routeFactory = require(filePath);
     if (typeof routeFactory !== 'function') {
       logger.error(`FATAL: Route factory in ${filePath} is not a function. Exiting.`);
       process.exit(1);
     }
-    return filePath.includes('users') ? routeFactory(poolInstance, bcryptInstance) : routeFactory(poolInstance);
+    return routeFactory(poolInstance);
   } catch (e) {
     logger.error(`FATAL: Failed to require or initialize route from ${filePath}: ${e.message} ${e.stack}`);
     process.exit(1);
   }
 };
 
-const userRoutes = initializeRoute('./routes/users', pool, bcrypt);
+const userRoutes = initializeRoute('./routes/users', pool);
 const studentRoutes = initializeRoute('./routes/students', pool);
 const scheduleRoutes = initializeRoute('./routes/schedules', pool);
 const seatsRoutes = initializeRoute('./routes/seats', pool);
@@ -200,9 +171,7 @@ const branchesRoutes = initializeRoute('./routes/branches', pool);
 const productsRoutes = initializeRoute('./routes/products', pool);
 
 app.use('/api/auth', authRoutes);
-// FIX: Removed 'checkAdmin' middleware to allow authenticated users to access their own profile.
-// The specific admin routes within 'userRoutes' are already protected internally.
-app.use('/api/users', authenticateUser, userRoutes);
+app.use('/api/users', authenticateUser, checkAdmin, userRoutes);
 app.use('/api/students', authenticateUser, checkAdminOrStaff, studentRoutes);
 app.use('/api/schedules', authenticateUser, checkAdminOrStaff, scheduleRoutes);
 app.use('/api/seats', authenticateUser, checkAdminOrStaff, seatsRoutes);
@@ -266,17 +235,9 @@ const PORT_NUM = process.env.PORT || 3000;
     } else {
         logger.warn('setupCronJobs is not a function, cron jobs not started.');
     }
-    const server = app.listen(PORT_NUM, '0.0.0.0', () => { // Assign app.listen to 'server'
+    app.listen(PORT_NUM, '0.0.0.0', () => {
       logger.info(`Server running on port ${PORT_NUM}`);
     });
-
-    // *** FIX STARTS HERE ***
-    // Set a longer keep-alive timeout to prevent premature connection closing
-    // Your frontend polls every 30s, so this should be > 30s. 65s is a safe value.
-    server.keepAliveTimeout = 65000; // 65 seconds
-    server.headersTimeout = 70000;   // 70 seconds
-    // *** FIX ENDS HERE ***
-
   } catch (err) {
     logger.error('Failed to start server:', err.stack);
     process.exit(1);
@@ -292,7 +253,7 @@ async function initializeSessionTable() {
         "expire" timestamp(6) NOT NULL
       ) WITH (OIDS=FALSE);`);
     const pkeyCheck = await pool.query(`
-      SELECT conname FROM pg_constraint
+      SELECT conname FROM pg_constraint 
       WHERE conrelid = 'session'::regclass AND conrelid::oid IN (
         SELECT oid FROM pg_class WHERE relname = 'session' AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
       ) AND contype = 'p';
@@ -304,7 +265,7 @@ async function initializeSessionTable() {
     logger.info('Session table checked/initialized successfully');
   } catch (err) {
     logger.error('Error initializing session table:', err.stack);
-    if (err.code !== '42P07' && err.code !== '42710') {
+    if (err.code !== '42P07' && err.code !== '42710') { 
         // process.exit(1); // Consider if this should halt server startup
     } else {
       logger.warn(`Session table or its constraints/indexes might already exist: ${err.message}`);
@@ -316,7 +277,7 @@ async function createDefaultAdmin() {
   try {
     const usersTableExists = await pool.query(`
       SELECT EXISTS (
-        SELECT FROM information_schema.tables
+        SELECT FROM information_schema.tables 
         WHERE  table_schema = 'public'
         AND    table_name   = 'users'
       );
@@ -328,10 +289,10 @@ async function createDefaultAdmin() {
 
     const userCountResult = await pool.query("SELECT COUNT(*) FROM users WHERE role = 'admin'");
     if (parseInt(userCountResult.rows[0].count) === 0) {
-      const hashedPassword = await bcrypt.hash(process.env.DEFAULT_ADMIN_PASSWORD || 'admin', 10);
+      const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin';
       await pool.query(
         'INSERT INTO users (username, password, role, full_name, email) VALUES ($1, $2, $3, $4, $5)',
-        [process.env.DEFAULT_ADMIN_USERNAME || 'admin', hashedPassword, 'admin', 'Default Admin', 'admin@example.com']
+        [process.env.DEFAULT_ADMIN_USERNAME || 'admin', defaultPassword, 'admin', 'Default Admin', 'admin@example.com']
       );
       logger.info('Default admin user created.');
     } else {

@@ -1,10 +1,9 @@
-// File: ExpiredMemberships.tsx
 import React, { useEffect, useState } from 'react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import api from '../services/api';
-import { Search, ChevronLeft, ChevronRight, Trash2, Eye } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Trash2, Eye, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -56,7 +55,6 @@ interface Student {
   seatId?: number;
   seatNumber?: string;
 }
-
 
 interface Seat {
   id: number;
@@ -193,6 +191,13 @@ const ExpiredMemberships = () => {
     }
   };
 
+  const handleWhatsAppClick = (phone: string) => {
+    // Ensure phone number is in correct format (remove any non-digits and add +91 for Indian numbers)
+    const cleanedPhone = phone.replace(/\D/g, '');
+    const formattedPhone = `+91${cleanedPhone}`;
+    window.open(`https://wa.me/${formattedPhone}`, '_blank');
+  };
+
   const handleRenewSubmit = async () => {
     // **FIX START**: Added stricter validation to match backend requirements
     if (
@@ -253,7 +258,7 @@ const ExpiredMemberships = () => {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar />
-        <div className="p-4">
+        <div className="p Tz-4">
           <h2 className="text-xl font-semibold mb-4">Expired Memberships</h2>
           <div className="relative mb-4">
             <Search className="absolute left-3 top-3 text-gray-400" />
@@ -296,6 +301,9 @@ const ExpiredMemberships = () => {
                       <TableCell className="space-x-2">
                         <Button onClick={() => navigate(`/students/${student.id}`)} variant="outline">
                           <Eye size={16} />
+                        </Button>
+                        <Button onClick={() => handleWhatsAppClick(student.phone)} variant="outline">
+                          <MessageCircle size={16} />
                         </Button>
                         {user?.role === 'admin' && (
                           <Button onClick={() => handleRenewClick(student)}>
