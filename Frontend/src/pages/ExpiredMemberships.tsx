@@ -256,9 +256,9 @@ const ExpiredMemberships = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-auto">
         <Navbar />
-        <div className="p Tz-4">
+        <div className="p-4">
           <h2 className="text-xl font-semibold mb-4">Expired Memberships</h2>
           <div className="relative mb-4">
             <Search className="absolute left-3 top-3 text-gray-400" />
