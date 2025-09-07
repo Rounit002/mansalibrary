@@ -1,1 +1,1 @@
-delete from users
+INSERT INTO users (username, password, role, full_name, email) VALUES ('admin','admin','admin','Mansa','adminn@gmail.com');
